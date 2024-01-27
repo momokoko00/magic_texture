@@ -58,7 +58,7 @@ def create_material(context, material_name):
             material.node_tree.links.new(gamma_node.inputs['Color'], texture_node.outputs['Color'])
             material.node_tree.links.new(principled_bsdf.inputs['Metallic'], gamma_node.outputs['Color'])
             texture_node.image.colorspace_settings.name = 'Non-Color'
-            ao_yes= True
+
         # Roughness
         if "rough" in image.name.lower() or "roughness" in image.name.lower():
             # Add a Color Ramp node and connect it to the Roughness input of Principled BSDF
@@ -93,6 +93,7 @@ def create_material(context, material_name):
             mix_color_node.blend_type = 'MULTIPLY'
             material.node_tree.links.new(mix_color_node.inputs['Color2'], texture_node.outputs['Color'])
             texture_node.image.colorspace_settings.name = 'Non-Color'
+            ao_yes= True
             
             
         # Rename the texture node to reflect the image name
@@ -102,22 +103,16 @@ def create_material(context, material_name):
         albedo_texture = None
 
         for node in material.node_tree.nodes:
-                if node.type == 'TEX_IMAGE' and any(keyword in node.image.filepath.lower() for keyword in albedo_keywords):
-                    albedo_texture = node
-                    break
+            if node.type == 'TEX_IMAGE' and any(keyword in node.image.filepath.lower() for keyword in albedo_keywords):
+                albedo_texture = node
+                break
 
-            # If an appropriate image texture is found, find an existing MixRGB node (if any)
-        mix_color_node = None
-            for node in material.node_tree.nodes:
-                if node.type == 'ShaderNodeMixRGB':
-                    mix_color_node = node
-                    break
-
-            # If an existing MixRGB node is found, link albedo texture as Color1
-        if albedo_texture and mix_color_node:
+        # If an appropriate image texture is found, link it to the MixRGB node as Color1
+        # If no image with "Base" or "dif" was found, connect albedo directly to Base Color
+        if ao_yes:
+            if albedo_texture and connected_base_color:
                 material.node_tree.links.new(mix_color_node.inputs['Color1'], albedo_texture.outputs['Color'])
-                texture_node.image.colorspace_settings.name = 'Non-Color'
-                
+                material.node_tree.links.new(principled_bsdf.inputs['Base Color'], mix_color_node.outputs['Color'])
 
     return material
 
@@ -161,7 +156,7 @@ class OBJECT_OT_multi_image_import(Operator, ImportHelper):
             read_image(context, filepath)
 
         # Create a new material with imported images
-        material_name = "MultiImageMaterial"
+        material_name = "Magic_Texture"
         material = create_material(context, material_name)
 
         # Assign the material to the selected object

@@ -35,6 +35,22 @@ def create_material(context, material_name):
     height_yes = False
     bump_yes = False
     
+    
+    texture_coord_node = material.node_tree.nodes.new(type='ShaderNodeTexCoord')
+    texture_coord_node.location.x = principled_bsdf.location.x - 1200  # Adjust this value for horizontal spacing
+    texture_coord_node.location.y = principled_bsdf.location.y - 200  # Adjust this value for vertical spacing
+
+    # Create a new mapping node
+    mapping_node = material.node_tree.nodes.new(type='ShaderNodeMapping')
+    mapping_node.location.x = texture_coord_node.location.x + 200  # Adjust this value for horizontal spacing
+    mapping_node.location.y = texture_coord_node.location.y
+
+    # Connect the Texture Coordinate node to the Mapping node
+    material.node_tree.links.new(mapping_node.inputs['Vector'], texture_coord_node.outputs['UV'])
+
+    # Initialize texture_node outside the loop
+    texture_node = None
+
 
     for image_index, image in enumerate(bpy.data.images):
         if "normaldx" in image.name.lower():
@@ -42,51 +58,21 @@ def create_material(context, material_name):
         
         texture_node = material.node_tree.nodes.new(type='ShaderNodeTexImage')
         texture_node.image = image
+        '''
         texture_node.location.x = principled_bsdf.location.x + node_spacing_x  # Adjust this value for horizontal spacing
         texture_node.location.y = principled_bsdf.location.y + current_y
         current_y += node_spacing_y
-        
+        '''
         
         # Base Color
         if "base" in image.name.lower() or "albedo" in image.name.lower() or "dif" in image.name.lower() or "color" in image.name.lower():
             material.node_tree.links.new(principled_bsdf.inputs['Base Color'], texture_node.outputs['Color'])
             connected_base_color = True
-        # Metallic
-        if "metalness" in image.name.lower() or "metallic" in image.name.lower():
-            # Add a Gamma node and connect it to the Metallic input of Principled BSDF
-            gamma_node = material.node_tree.nodes.new(type='ShaderNodeGamma')
-            material.node_tree.links.new(gamma_node.inputs['Color'], texture_node.outputs['Color'])
-            material.node_tree.links.new(principled_bsdf.inputs['Metallic'], gamma_node.outputs['Color'])
-            texture_node.image.colorspace_settings.name = 'Non-Color'
-
-        # Roughness
-        if "rough" in image.name.lower() or "roughness" in image.name.lower():
-            # Add a Color Ramp node and connect it to the Roughness input of Principled BSDF
-            color_ramp_node = material.node_tree.nodes.new(type='ShaderNodeValToRGB')
-            material.node_tree.links.new(color_ramp_node.inputs['Fac'], texture_node.outputs['Color'])
-            material.node_tree.links.new(principled_bsdf.inputs['Roughness'], color_ramp_node.outputs['Color'])
-            texture_node.image.colorspace_settings.name = 'Non-Color'    
-        # Displacement 
-        if "displace" in image.name.lower() or "height" in image.name.lower():
-            # Add a Displacement node and connect it to the Displacement input of Material Output
-            displacement_node = material.node_tree.nodes.new(type='ShaderNodeDisplacement')
-            material.node_tree.links.new(displacement_node.inputs['Height'], texture_node.outputs['Color'])
-            material.node_tree.links.new(material.node_tree.nodes['Material Output'].inputs['Displacement'], displacement_node.outputs['Displacement'])
-            texture_node.image.colorspace_settings.name = 'Non-Color'
-        # Normal 
-        if "normal" in image.name.lower():
-            # Add a Normal map node and connect it to the Normal input of Principled BSDF
-            normal_node = material.node_tree.nodes.new(type='ShaderNodeNormalMap')
-            material.node_tree.links.new(normal_node.inputs['Color'], texture_node.outputs['Color'])
-            material.node_tree.links.new(principled_bsdf.inputs['Normal'], normal_node.outputs['Normal'])
-            texture_node.image.colorspace_settings.name = 'Non-Color'
-        # Bump
-        if "bump" in image.name.lower():
-            # Add a Bump node and connect it to the Normal input of Principled BSDF
-            bump_node = material.node_tree.nodes.new(type='ShaderNodeBump')
-            material.node_tree.links.new(bump_node.inputs['Height'], texture_node.outputs['Color'])
-            material.node_tree.links.new(principled_bsdf.inputs['Normal'], bump_node.outputs['Normal'])
-            texture_node.image.colorspace_settings.name = 'Non-Color'
+            material.node_tree.links.new(texture_node.inputs['Vector'], mapping_node.outputs['Vector'])
+            texture_node.location.x = mapping_node.location.x + 300
+            texture_node.location.y = mapping_node.location.y + 600
+            
+                    
         # AO 
         if "ao" in image.name.lower() or "ambient" in image.name.lower() or "occlusion" in image.name.lower():
             mix_color_node = material.node_tree.nodes.new(type='ShaderNodeMixRGB')
@@ -94,7 +80,101 @@ def create_material(context, material_name):
             material.node_tree.links.new(mix_color_node.inputs['Color2'], texture_node.outputs['Color'])
             texture_node.image.colorspace_settings.name = 'Non-Color'
             ao_yes= True
+            material.node_tree.links.new(texture_node.inputs['Vector'], mapping_node.outputs['Vector'])
+            texture_node.location.x = mapping_node.location.x + 300
+            texture_node.location.y = mapping_node.location.y + 300
+            mix_color_node.location.x = mapping_node.location.x + 700
+            mix_color_node.location.y = mapping_node.location.y + 400
             
+        # Metallic
+        if "metalness" in image.name.lower() or "metallic" in image.name.lower():
+            # Add a Gamma node and connect it to the Metallic input of Principled BSDF
+            gamma_node = material.node_tree.nodes.new(type='ShaderNodeGamma')
+            material.node_tree.links.new(gamma_node.inputs['Color'], texture_node.outputs['Color'])
+            material.node_tree.links.new(principled_bsdf.inputs['Metallic'], gamma_node.outputs['Color'])
+            texture_node.image.colorspace_settings.name = 'Non-Color'
+            material.node_tree.links.new(texture_node.inputs['Vector'], mapping_node.outputs['Vector'])
+            texture_node.location.x = mapping_node.location.x + 300
+            texture_node.location.y = mapping_node.location.y
+            gamma_node.location.x = mapping_node.location.x + 600
+            gamma_node.location.y = mapping_node.location.y
+
+        # Roughness
+        if "rough" in image.name.lower() or "roughness" in image.name.lower():
+            # Add a Color Ramp node and connect it to the Roughness input of Principled BSDF
+            color_ramp_node = material.node_tree.nodes.new(type='ShaderNodeValToRGB')
+            material.node_tree.links.new(color_ramp_node.inputs['Fac'], texture_node.outputs['Color'])
+            material.node_tree.links.new(principled_bsdf.inputs['Roughness'], color_ramp_node.outputs['Color'])
+            texture_node.image.colorspace_settings.name = 'Non-Color' 
+            material.node_tree.links.new(texture_node.inputs['Vector'], mapping_node.outputs['Vector'])
+            texture_node.location.x = mapping_node.location.x + 300
+            texture_node.location.y = mapping_node.location.y - 300
+            color_ramp_node.location.x = mapping_node.location.x + 600
+            color_ramp_node.location.y = mapping_node.location.y - 300
+            
+        # Glossiness
+        if "reflect" in texture_node.image.name.lower() or "gloss" in texture_node.image.name.lower():
+            invert_node = material.node_tree.nodes.new(type='ShaderNodeInvert')
+            material.node_tree.links.new(invert_node.inputs['Color'], texture_node.outputs['Color'])
+            color_ramp_node = material.node_tree.nodes.new(type='ShaderNodeValToRGB')
+            material.node_tree.links.new(color_ramp_node.inputs['Fac'], invert_node.outputs['Color'])
+            material.node_tree.links.new(principled_bsdf.inputs['Roughness'], color_ramp_node.outputs['Color'])
+            material.node_tree.links.new(texture_node.inputs['Vector'], mapping_node.outputs['Vector'])
+            texture_node.image.colorspace_settings.name = 'Non-Color'
+            texture_node.location.x = mapping_node.location.x + 300
+            texture_node.location.y = mapping_node.location.y - 300
+            invert_node.location.x = mapping_node.location.x + 600
+            invert_node.location.x = mapping_node.location.y - 300
+            color_ramp_node.location.x = mapping_node.location.x + 750
+            color_ramp_node.location.y = mapping_node.location.x - 300
+            
+        # Opacity
+        if "opacity" in image.name.lower() or "alpha" in image.name.lower():
+            material.node_tree.links.new(principled_bsdf.inputs['Alpha'], texture_node.outputs['Color'])
+            texture_node.location.x = mapping_node.location.x + 300
+            texture_node.location.y = mapping_node.location.y - 600
+            material.node_tree.links.new(texture_node.inputs['Vector'], mapping_node.outputs['Vector'])
+            texture_node.image.colorspace_settings.name = 'Non-Color'
+            
+        # Normal 
+        if "normal" in image.name.lower():
+            # Add a Normal map node and connect it to the Normal input of Principled BSDF
+            normal_node = material.node_tree.nodes.new(type='ShaderNodeNormalMap')
+            material.node_tree.links.new(normal_node.inputs['Color'], texture_node.outputs['Color'])
+            material.node_tree.links.new(principled_bsdf.inputs['Normal'], normal_node.outputs['Normal'])
+            texture_node.image.colorspace_settings.name = 'Non-Color'
+            material.node_tree.links.new(texture_node.inputs['Vector'], mapping_node.outputs['Vector'])
+            texture_node.location.x = mapping_node.location.x + 300
+            texture_node.location.y = mapping_node.location.y - 900
+            normal_node.location.x = mapping_node.location.x + 700
+            normal_node.location.y = mapping_node.location.y - 900
+            
+        # Bump
+        if "bump" in image.name.lower():
+            # Add a Bump node and connect it to the Normal input of Principled BSDF
+            bump_node = material.node_tree.nodes.new(type='ShaderNodeBump')
+            material.node_tree.links.new(bump_node.inputs['Height'], texture_node.outputs['Color'])
+            material.node_tree.links.new(principled_bsdf.inputs['Normal'], bump_node.outputs['Normal'])
+            texture_node.image.colorspace_settings.name = 'Non-Color'
+            material.node_tree.links.new(texture_node.inputs['Vector'], mapping_node.outputs['Vector'])
+            texture_node.location.x = mapping_node.location.x + 300
+            texture_node.location.y = mapping_node.location.y - 900
+            bump_node.location.x = mapping_node.location.x + 600
+            bump_node.location.y = mapping_node.location.y - 900
+        
+        # Displacement 
+        if "displace" in image.name.lower() or "height" in image.name.lower():
+            # Add a Displacement node and connect it to the Displacement input of Material Output
+            displacement_node = material.node_tree.nodes.new(type='ShaderNodeDisplacement')
+            material.node_tree.links.new(displacement_node.inputs['Height'], texture_node.outputs['Color'])
+            material.node_tree.links.new(material.node_tree.nodes['Material Output'].inputs['Displacement'], displacement_node.outputs['Displacement'])
+            texture_node.image.colorspace_settings.name = 'Non-Color'
+            material.node_tree.links.new(texture_node.inputs['Vector'], mapping_node.outputs['Vector'])
+            texture_node.location.x = mapping_node.location.x + 300
+            texture_node.location.y = mapping_node.location.y - 1200
+            displacement_node.location.x = mapping_node.location.x + 900
+            displacement_node.location.y = mapping_node.location.y - 1200
+        
             
         # Rename the texture node to reflect the image name
         texture_node.name = f"Texture_{image.name}"
@@ -116,6 +196,17 @@ def create_material(context, material_name):
 
     return material
 
+def remove_unused_texture_nodes(material):
+    for node in material.node_tree.nodes:
+        if node.type == 'TEX_IMAGE':
+            has_links = False
+            for output in node.outputs:
+                for link in output.links:  # Iterate through links explicitly
+                    if link.to_socket:  # Check for a destination socket
+                        has_links = True
+                        break  # Exit the inner loop if a link is found
+            if not has_links:
+                material.node_tree.nodes.remove(node)
 
 class OBJECT_OT_multi_image_import(Operator, ImportHelper):
     bl_idname = "object.multi_image_import"
@@ -154,10 +245,11 @@ class OBJECT_OT_multi_image_import(Operator, ImportHelper):
         for current_file in self.files:
             filepath = os.path.join(self.directory, current_file.name)
             read_image(context, filepath)
-
+        
         # Create a new material with imported images
         material_name = "Magic_Texture"
         material = create_material(context, material_name)
+        remove_unused_texture_nodes(material)
 
         # Assign the material to the selected object
         if selected_object:
